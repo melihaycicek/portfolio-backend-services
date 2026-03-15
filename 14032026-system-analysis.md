@@ -219,45 +219,44 @@ Frontend bu URL'leri kullanıyorsa CORS listesi de güncellenmeli (bkz. Madde 4.
 
 ---
 
-## 8. Sorun Tespiti — 15.03.2026
+## 8. Sorun Giderme & Test Geçmişi
 
-### ❌ Gözlemlenen Hata
-```
-https://audfix.com/melihaycicek/api/health
-→ Cannot GET /melihaycicek/api/health
-```
+### 15.03.2026 — Health Check 404
 
-### 🔍 Kök Neden
-Bu mesaj Express'in 404 yanıtıdır. Yani istek Passenger üzerinden Express'e ulaşıyor ancak Passenger, Application URL'deki `/melihaycicek` prefix'ini strip etmeden iletiyor. Express `/melihaycicek/api/health` path'ini alıyor; route'lar `/api/health` olarak tanımlı — route eşleşmesi yok.
+**Hata:** `Cannot GET /melihaycicek/api/health`
 
-**Port 3001 sorun değil:** cPanel/Passenger, `process.env.PORT`'u kendi yönetir. `|| 3001` yalnızca local geliştirme fallback'i — sunucu ortamında 3001 portuna gidilmez.
+**Kök Neden:** Passenger, Application URL'deki `/melihaycicek` prefix'ini strip etmeden Express'e iletiyordu. Route'lar `/api/health` olarak tanımlıydı — eşleşme yoktu.
 
-### ✅ Uygulanan Kod Düzeltmesi
-`src/server.js`'e `BASE_PATH` environment variable desteği eklendi. `BASE_PATH` set edildiğinde tüm route'lar (builder, analytics, health) bu prefix altında mount ediliyor. Local geliştirmede `BASE_PATH` boş bırakılırsa davranış değişmez.
+**Uygulanan Düzeltme:** `src/server.js`'e `BASE_PATH` env var desteği eklendi. Tüm route'lar `${BASE}/api/...` olarak mount ediliyor. cPanel'e `BASE_PATH=/melihaycicek` eklendi.
 
-### Melih İçin Yeni Aksiyon Listesi
+**Port 3001 notu:** Passenger `process.env.PORT`'u kendi yönetir, `|| 3001` yalnızca local fallback — sorun değildi.
 
-```
-[x] 1. cPanel → Node.js App → Environment Variables bölümüne git
-       Yeni değişken ekle:
-       BASE_PATH = /melihaycicek
+---
 
-[x] 2. "Save" → "Restart" (Node.js App sayfasından)
+### 16.03.2026 — Builder Lead 500
 
-[x] 3. Test et:
-       https://audfix.com/melihaycicek/api/health
-       → {"status":"ok","timestamp":"2026-03-15T21:04:56.700Z"} ✅ ÇALIŞIYOR
+**Hata:** `POST /api/builder-lead` → 500
 
-[x] 4. Kodu deploy et (git pull + restart):
-       ssh audfllcd@audfix.com -p 21098
-       cd ~/melihaycicek-backend-services
-       git pull origin main
-       npm install --omit=dev
-       # cPanel'den Restart
+**Kök Neden:** `JSON.stringify(undefined)` JS'de `undefined` döner (null değil). `platforms`, `capabilities`, `modules` gönderilmediğinde mysql2 bu değerleri sorgu parametresi olarak bind edemiyordu.
+
+**Uygulanan Düzeltme:** `src/routes/builder.js`'de ternary guard eklendi:
+```js
+platforms ? JSON.stringify(platforms) : null
+capabilities ? JSON.stringify(capabilities) : null
+modules ? JSON.stringify(modules) : null
 ```
 
-### 🟢 Sonuç — 15.03.2026 21:04 UTC
-API production ortamında ayağa kalktı. `https://audfix.com/melihaycicek/api/health` başarıyla yanıt veriyor.
+---
+
+### 🟢 Son Test Sonuçları — 16.03.2026
+
+| Endpoint | Method | Status | Sonuç |
+|---|---|---|---|
+| `/melihaycicek/api/health` | GET | 200 | `{"status":"ok","timestamp":"2026-03-15T21:52:56.318Z"}` ✅ |
+| `/melihaycicek/api/analytics` | POST | 201 | `{"success":true}` ✅ |
+| `/melihaycicek/api/builder-lead` | POST | 201 | `{"success":true}` ✅ |
+
+**Tüm endpoint'ler production'da çalışıyor.**
 
 ---
 
