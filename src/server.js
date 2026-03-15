@@ -38,12 +38,17 @@ app.use('/api/', apiLimiter);
 /* ─── Database Pool ─── */
 const pool = createPool();
 
+/* ─── Base Path (cPanel Passenger sub-path support) ─── */
+// Passenger forwards the full path (e.g. /melihaycicek/api/...) without stripping the base URI.
+// Set BASE_PATH=/melihaycicek in cPanel environment variables to match the Application URL.
+const BASE = (process.env.BASE_PATH || '').replace(/\/$/, '');
+
 /* ─── Routes ─── */
-app.use('/api', builderRoutes(pool));
-app.use('/api', analyticsRoutes(pool));
+app.use(`${BASE}/api`, builderRoutes(pool));
+app.use(`${BASE}/api`, analyticsRoutes(pool));
 
 /* ─── Health Check ─── */
-app.get('/api/health', (_req, res) => {
+app.get(`${BASE}/api/health`, (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

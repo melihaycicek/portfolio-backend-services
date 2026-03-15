@@ -209,12 +209,51 @@ Frontend bu URL'leri kullanıyorsa CORS listesi de güncellenmeli (bkz. Madde 4.
 ### Melih İçin Sıralı Aksiyon Listesi (cPanel)
 
 ```
-[ ] 1. Application Startup File → src/server.js yap
-[ ] 2. Environment Variables ekle (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
-[ ] 3. Application Mode → production
-[ ] 4. Save → Restart
-[ ] 5. https://audfix.com/melihaycicek/api/health adresini test et
-[ ] 6. MySQL'de migration SQL'ini çalıştır (migrations/001_init.sql)
+[x] 1. Application Startup File → src/server.js yap
+[x] 2. Environment Variables ekle (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
+[x] 3. Application Mode → production
+[x] 4. Save → Restart
+[x] 5. https://audfix.com/melihaycicek/api/health adresini test et
+[x] 6. MySQL'de migration SQL'ini çalıştır (migrations/001_init.sql)
+```
+
+---
+
+## 8. Sorun Tespiti — 15.03.2026
+
+### ❌ Gözlemlenen Hata
+```
+https://audfix.com/melihaycicek/api/health
+→ Cannot GET /melihaycicek/api/health
+```
+
+### 🔍 Kök Neden
+Bu mesaj Express'in 404 yanıtıdır. Yani istek Passenger üzerinden Express'e ulaşıyor ancak Passenger, Application URL'deki `/melihaycicek` prefix'ini strip etmeden iletiyor. Express `/melihaycicek/api/health` path'ini alıyor; route'lar `/api/health` olarak tanımlı — route eşleşmesi yok.
+
+**Port 3001 sorun değil:** cPanel/Passenger, `process.env.PORT`'u kendi yönetir. `|| 3001` yalnızca local geliştirme fallback'i — sunucu ortamında 3001 portuna gidilmez.
+
+### ✅ Uygulanan Kod Düzeltmesi
+`src/server.js`'e `BASE_PATH` environment variable desteği eklendi. `BASE_PATH` set edildiğinde tüm route'lar (builder, analytics, health) bu prefix altında mount ediliyor. Local geliştirmede `BASE_PATH` boş bırakılırsa davranış değişmez.
+
+### Melih İçin Yeni Aksiyon Listesi
+
+```
+[ ] 1. cPanel → Node.js App → Environment Variables bölümüne git
+       Yeni değişken ekle:
+       BASE_PATH = /melihaycicek
+
+[ ] 2. "Save" → "Restart" (Node.js App sayfasından)
+
+[ ] 3. Test et:
+       https://audfix.com/melihaycicek/api/health
+       → { "status": "ok", "timestamp": "..." } dönmeli
+
+[ ] 4. Kodu deploy et (git pull + restart):
+       ssh audfllcd@audfix.com -p 21098
+       cd ~/melihaycicek-backend-services
+       git pull origin main
+       npm install --omit=dev
+       # cPanel'den Restart
 ```
 
 ---
