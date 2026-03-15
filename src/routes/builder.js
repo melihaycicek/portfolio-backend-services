@@ -39,8 +39,10 @@ module.exports = function builderRoutes(pool) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           name, email, company || null, note || null,
-          industry, scale, users,
-          JSON.stringify(platforms), JSON.stringify(capabilities), JSON.stringify(modules),
+          industry, scale || null, users || null,
+          platforms ? JSON.stringify(platforms) : null,
+          capabilities ? JSON.stringify(capabilities) : null,
+          modules ? JSON.stringify(modules) : null,
           roleComplexity || null, dataSensitivity || null, realtimeLevel || null,
           integrations || null, reporting || null, notifications || null,
           mobileUsage || null, aiUsage || null,
